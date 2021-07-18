@@ -1,0 +1,6 @@
+Wed Jun 23 15:34:20 UTC 2021
+SOC: g12a
+BRANCH: odroidg12-v2015.01 (20210623)
+u-boot: 99215196b4ca5a4230a722c5bab9f3ed4caa0e5c
+b112cd23a95b5f80c169aceda1bc7dc78e2ebbc2
+BOARD: odroidc4
