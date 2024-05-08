@@ -3,6 +3,9 @@
 if [ "${FORCE_RECOVERY}" == "true" ]
 then
 ./build.sh android-tv-13.0.0_r1-recovery-only g12a_odroidc4_v1
+elif [ "${CONSOLE_ENABLED}" == "true" ]
+then
+./build.sh android-tv-13.0.0_r1-console g12a_odroidc4_v1
 else
 ./build.sh android-tv-13.0.0_r1 g12a_odroidc4_v1
 fi
