@@ -29,7 +29,7 @@ REFBOARD=${2}
 TMP_GIT=$(pwd)/out
 
 # U-Boot
-git clone --depth=2 https://github.com/Stricted/deadpool_u-boot.git -b $GITBRANCH $TMP_GIT/u-boot
+git clone --depth=2 https://github.com/bumerc77/deadpool_u-boot.git -b $GITBRANCH $TMP_GIT/u-boot
 
 mkdir $TMP_GIT/gcc-linaro-aarch64-none-elf
 wget -qO- https://releases.linaro.org/archive/13.11/components/toolchain/binaries/gcc-linaro-aarch64-none-elf-4.8-2013.11_linux.tar.xz | tar -xJ --strip-components=1 -C $TMP_GIT/gcc-linaro-aarch64-none-elf
