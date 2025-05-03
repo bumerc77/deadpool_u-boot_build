@@ -57,24 +57,34 @@ get_src () {
         git clone -n --depth=1 --filter=tree:0 https://github.com/BPI-SINOVOIP/BPI-S905X3-Android9.git -b $GITBRANCH $TMP_GIT/FIP
         (
             cd $TMP_GIT/FIP
-            git sparse-checkout set --no-cone /$bl2 /$bl31 /$fip
-            git checkout
+            if [[ "$SOCFAMILY" == "g12b" ]]
+            then
+                git sparse-checkout set --no-cone /$bl2 /$bl30 /$bl31 /$fip
+                git checkout
+            else
+                git sparse-checkout set --no-cone /$bl2 /$bl31 /$fip
+                git checkout
+            fi
         )
 }
 
-# Use old BPI-S905X3 master branch to checkout bl30.bin, as the new blob leads to "Undefined instructions" crash
-get_bl30 () {
-    local GITBRANCH="master"
-    commit="a538717a004e5a99927a755db5f5643c31caf6ce"
-    git clone -n --depth=1 --filter=tree:0 https://github.com/BPI-SINOVOIP/BPI-S905X3-Android9.git -b $GITBRANCH $TMP_GIT/BL30
-    (
-        cd $TMP_GIT/BL30
-        git sparse-checkout set --no-cone /$bl30
-        git config --global advice.detachedHead false && git checkout $commit
-    )
-}
+get_src "$@" || exit
 
-get_src "$@" && get_bl30 "$@" || exit
+# Use old BPI-S905X3 master branch to checkout bl30.bin, as the new blob leads to "Undefined instructions" crash
+if ! [[ "$SOCFAMILY" == "g12b" ]]
+then
+    get_bl30 () {
+        local GITBRANCH="master"
+        commit="a538717a004e5a99927a755db5f5643c31caf6ce"
+        git clone -n --depth=1 --filter=tree:0 https://github.com/BPI-SINOVOIP/BPI-S905X3-Android9.git -b $GITBRANCH $TMP_GIT/BL30
+        (
+            cd $TMP_GIT/BL30
+            git sparse-checkout set --no-cone /$bl30
+            git config --global advice.detachedHead false && git checkout $commit
+        )
+    }
+    get_bl30 "$@" || exit
+fi
 
 # U-Boot
 git clone --depth=2 https://github.com/Stricted/deadpool_u-boot.git -b $GITBRANCH $TMP_GIT/bl33
@@ -91,8 +101,13 @@ EOF
 chmod a+rwx,o-w $TMP_GIT/mk
 
 cp -r $TMP_GIT/FIP/$dir/* $TMP_GIT/ && sync
-cp -r $TMP_GIT/BL30/$dir/* $TMP_GIT/ && sync
-sed -i "s/40960/47104/" $TMP_GIT/fip/$SOCFAMILY/build.sh
+
+if ! [[ "$SOCFAMILY" == "g12b" ]]
+then
+    cp -r $TMP_GIT/BL30/$dir/* $TMP_GIT/ && sync
+    sed -i "s/40960/47104/" $TMP_GIT/fip/$SOCFAMILY/build.sh
+fi
+
 sed -i "190d" $TMP_GIT/fip/lib.sh
 sed -i "s/ \x24\x7BBL33_DEFCFG2\x7D\x2F\*//" $TMP_GIT/fip/build_bl33.sh
 (
@@ -107,8 +122,15 @@ dd if=$TMP/u-boot.bin of=$TMP/sd.img conv=fsync bs=512 seek=1
 # Normalize
 date > $TMP/info.txt
 echo "BRANCH: $GITBRANCH ($(date +%Y%m%d))" >> $TMP/info.txt
-dd if=$TMP_GIT/bl30/bin/$SOCFAMILY/bl30.bin of=$TMP_GIT/bl30_info.bin bs=$((0x1)) count=$((0x44)) skip=$((0x77b4))
-echo "bl30: $(< "$TMP_GIT/bl30_info.bin")" >> $TMP/info.txt
+
+if [[ "$SOCFAMILY" == "g12b" ]]
+then
+    dd if=$TMP_GIT/bl30/bin/$SOCFAMILY/bl30.bin of=$TMP_GIT/bl30_info.bin bs=$((0x1)) count=$((0x44)) skip=$((0x7420))
+    echo "bl30: $(< "$TMP_GIT/bl30_info.bin")" >> $TMP/info.txt
+else
+    dd if=$TMP_GIT/bl30/bin/$SOCFAMILY/bl30.bin of=$TMP_GIT/bl30_info.bin bs=$((0x1)) count=$((0x44)) skip=$((0x77b4))
+    echo "bl30: $(< "$TMP_GIT/bl30_info.bin")" >> $TMP/info.txt
+fi
 
 for component in $TMP_GIT/*
 do
