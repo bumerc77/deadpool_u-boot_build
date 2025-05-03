@@ -93,6 +93,8 @@ chmod a+rwx,o-w $TMP_GIT/mk
 cp -r $TMP_GIT/FIP/$dir/* $TMP_GIT/ && sync
 cp -r $TMP_GIT/BL30/$dir/* $TMP_GIT/ && sync
 sed -i "s/40960/47104/" $TMP_GIT/fip/$SOCFAMILY/build.sh
+sed -i "190d" $TMP_GIT/fip/lib.sh
+sed -i "s/ \x24\x7BBL33_DEFCFG2\x7D\x2F\*//" $TMP_GIT/fip/build_bl33.sh
 (
     cd $TMP_GIT
     PATH=$TMP_GIT/gcc-linaro-aarch64-none-elf/bin:$TMP_GIT/gcc-linaro-arm-none-eabi/bin:$PATH CROSS_COMPILE=aarch64-none-elf- ./mk ${REFBOARD} > /dev/null
