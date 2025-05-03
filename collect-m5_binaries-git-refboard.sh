@@ -116,6 +116,8 @@ sed -i "s/ \x24\x7BBL33_DEFCFG2\x7D\x2F\*//" $TMP_GIT/fip/build_bl33.sh
 )
 
 mkdir $TMP
+ln -sfn $TMP uboot-bins
+
 cp $TMP_GIT/build/{u-boot.bin,u-boot.bin.sd.bin,u-boot.bin.usb.bl2,u-boot.bin.usb.tpl} $TMP/ && sync
 dd if=$TMP/u-boot.bin of=$TMP/sd.img conv=fsync bs=512 seek=1
 
