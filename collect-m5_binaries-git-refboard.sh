@@ -16,13 +16,18 @@ bl2.bin, bl30, bl31, aml_encrypt, ddr_parse, fip_create, ddr firmware
 Description
 
 function usage() {
-    echo "Usage: $0 [u-boot branch] [soc] [refboard]"
+    echo "Usage: $0 [u-boot branch] [soc] [refboard] [power-up key]"
 }
 
 if [[ $# -lt 3 ]]
 then
     usage
     exit 22
+elif [[ $# -eq 3 ]]
+then
+    PWRKEYCODE=
+else
+    PWRKEYCODE=${4}
 fi
 
 GITBRANCH=${1}
@@ -106,6 +111,14 @@ if ! [[ "$SOCFAMILY" == "g12b" ]]
 then
     cp -r $TMP_GIT/BL30/$dir/* $TMP_GIT/ && sync
     sed -i "s/40960/47104/" $TMP_GIT/fip/$SOCFAMILY/build.sh
+fi
+
+if ! [[ -z "$PWRKEYCODE" ]]
+then
+    board_cfg="$TMP_GIT/bl33/board/amlogic/configs/${REFBOARD}.h"
+    head_tmp="$(mktemp $TMP_GIT/tmp.XXXX)"
+    awk -v pwr_key=${4} '{if ($2=="CONFIG_IR_REMOTE_POWER_UP_KEY_VAL6") $3=pwr_key; print $0}' $board_cfg > $head_tmp
+    cp $head_tmp $board_cfg
 fi
 
 sed -i "190d" $TMP_GIT/fip/lib.sh
