@@ -46,11 +46,11 @@ then
     SOCFAMILY="g12a"
 fi
 
-bl2="bootloader/uboot-repo/bl2"
-bl30="bootloader/uboot-repo/bl30"
-bl31="bootloader/uboot-repo/bl31_1.3"
+bl2="bl2/bin/$SOCFAMILY"
+bl30="bl30/bin/$SOCFAMILY"
+bl31="bl31/bl31_1.3/bin/$SOCFAMILY"
 fip="bootloader/uboot-repo/fip"
-dir="bootloader/uboot-repo"
+ddr="fip/$SOCFAMILY"
 TMP="uboot-bins-$(date +%Y%m%d-%H%M%S)"
 
 # path to clone the u-boot repos
@@ -59,37 +59,32 @@ TMP_GIT=$(mktemp -d)
 # FIP-binaries
 get_src () {
     local GITBRANCH="master"
-        git clone -n --depth=1 --filter=tree:0 https://github.com/BPI-SINOVOIP/BPI-S905X3-Android9.git -b $GITBRANCH $TMP_GIT/FIP
+    git clone -n --depth=1 --filter=tree:0 --single-branch https://github.com/BPI-SINOVOIP/BPI-S905X3-Android9.git -b $GITBRANCH $TMP_GIT/fip-src
+    (
+        cd $TMP_GIT/fip-src
+        git sparse-checkout set --no-cone /$fip !/$fip/$SOCFAMILY
+        git checkout
+        cp -a $fip $TMP_GIT/
+        cd .. && rm -rf fip-src
+    )
+}
+
+get_blx () {
+    local GITBRANCH="khadas-vims-v2015.01-5.15"
+        git clone -n --depth=1 --filter=tree:0 --single-branch https://github.com/khadas/u-boot.git -b $GITBRANCH $TMP_GIT/FIP
         (
             cd $TMP_GIT/FIP
-            if [[ "$SOCFAMILY" == "g12b" ]]
-            then
-                git sparse-checkout set --no-cone /$bl2 /$bl30 /$bl31 /$fip
-                git checkout
-            else
-                git sparse-checkout set --no-cone /$bl2 /$bl31 /$fip
-                git checkout
-            fi
+            git sparse-checkout set --no-cone /$bl2 /$bl30 /$bl31 /$ddr
+            git checkout
+            cp -a fip/$SOCFAMILY $TMP_GIT/fip/
+            cp -a bl2 $TMP_GIT/
+            cp -a bl30 $TMP_GIT/
+            cd bl31 && cp -a * ../../
         )
 }
 
 get_src "$@" || exit
-
-# Use old BPI-S905X3 master branch to checkout bl30.bin, as the new blob leads to "Undefined instructions" crash
-if ! [[ "$SOCFAMILY" == "g12b" ]]
-then
-    get_bl30 () {
-        local GITBRANCH="master"
-        commit="a538717a004e5a99927a755db5f5643c31caf6ce"
-        git clone -n --depth=1 --filter=tree:0 https://github.com/BPI-SINOVOIP/BPI-S905X3-Android9.git -b $GITBRANCH $TMP_GIT/BL30
-        (
-            cd $TMP_GIT/BL30
-            git sparse-checkout set --no-cone /$bl30
-            git config --global advice.detachedHead false && git checkout $commit
-        )
-    }
-    get_bl30 "$@" || exit
-fi
+get_blx "$@" || exit
 
 # U-Boot
 git clone --depth=2 https://github.com/Stricted/deadpool_u-boot.git -b $GITBRANCH $TMP_GIT/bl33
@@ -105,14 +100,7 @@ source fip/mk_script.sh
 EOF
 chmod a+rwx,o-w $TMP_GIT/mk
 
-cp -r $TMP_GIT/FIP/$dir/* $TMP_GIT/ && sync
-
-if ! [[ "$SOCFAMILY" == "g12b" ]]
-then
-    cp -r $TMP_GIT/BL30/$dir/* $TMP_GIT/ && sync
-    sed -i "s/40960/47104/" $TMP_GIT/fip/$SOCFAMILY/build.sh
-fi
-
+# custom power_up_key
 if ! [[ -z "$PWRKEYCODE" ]]
 then
     board_cfg="$TMP_GIT/bl33/board/amlogic/configs/${REFBOARD}.h"
@@ -140,11 +128,19 @@ echo "BRANCH: $GITBRANCH ($(date +%Y%m%d))" >> $TMP/info.txt
 
 if [[ "$SOCFAMILY" == "g12b" ]]
 then
-    dd if=$TMP_GIT/bl30/bin/$SOCFAMILY/bl30.bin of=$TMP_GIT/bl30_info.bin bs=$((0x1)) count=$((0x44)) skip=$((0x7420))
+    dd if=$TMP_GIT/bl2/bin/$SOCFAMILY/bl2.bin of=$TMP_GIT/bl2_info.bin bs=$((0x1)) count=$((0x53)) skip=$((0xba90))
+    echo "bl2: $(< "$TMP_GIT/bl2_info.bin")" >> $TMP/info.txt
+    dd if=$TMP_GIT/bl30/bin/$SOCFAMILY/bl30.bin of=$TMP_GIT/bl30_info.bin bs=$((0x1)) count=$((0x40)) skip=$((0x76d7))
     echo "bl30: $(< "$TMP_GIT/bl30_info.bin")" >> $TMP/info.txt
+    dd if=$TMP_GIT/bl31_1.3/bin/$SOCFAMILY/bl31.bin of=$TMP_GIT/bl31_info.bin bs=$((0x1)) count=$((0x58)) skip=$((0x1de38))
+    echo "bl31: $(< "$TMP_GIT/bl31_info.bin")" >> $TMP/info.txt
 else
-    dd if=$TMP_GIT/bl30/bin/$SOCFAMILY/bl30.bin of=$TMP_GIT/bl30_info.bin bs=$((0x1)) count=$((0x44)) skip=$((0x77b4))
+    dd if=$TMP_GIT/bl2/bin/$SOCFAMILY/bl2.bin of=$TMP_GIT/bl2_info.bin bs=$((0x1)) count=$((0x53)) skip=$((0xbdb8))
+    echo "bl2: $(< "$TMP_GIT/bl2_info.bin")" >> $TMP/info.txt
+    dd if=$TMP_GIT/bl30/bin/$SOCFAMILY/bl30.bin of=$TMP_GIT/bl30_info.bin bs=$((0x1)) count=$((0x40)) skip=$((0x7cf3))
     echo "bl30: $(< "$TMP_GIT/bl30_info.bin")" >> $TMP/info.txt
+    dd if=$TMP_GIT/bl31_1.3/bin/$SOCFAMILY/bl31.bin of=$TMP_GIT/bl31_info.bin bs=$((0x1)) count=$((0x58)) skip=$((0x1ee78))
+    echo "bl31: $(< "$TMP_GIT/bl31_info.bin")" >> $TMP/info.txt
 fi
 
 for component in $TMP_GIT/*
@@ -157,11 +153,16 @@ done
 
 if [[ "$REFBOARD" == "sm1_bananapim5_v1" ]]
 then
-    dd if=$TMP_GIT/fip/$SOCFAMILY/aml_ddr.fw of=$TMP_GIT/fw_version.bin bs=$((0x1)) count=$((0x13)) skip=$((0xb225))
-    dd if=$TMP_GIT/fip/$SOCFAMILY/aml_ddr.fw of=$TMP_GIT/fw_built.bin bs=$((0x1)) count=$((0x46)) skip=$((0xad78))
+    dd if=$TMP_GIT/fip/$SOCFAMILY/aml_ddr.fw of=$TMP_GIT/fw_version.bin bs=$((0x1)) count=$((0x13)) skip=$((0xb28d))
+    dd if=$TMP_GIT/fip/$SOCFAMILY/aml_ddr.fw of=$TMP_GIT/fw_built.bin bs=$((0x1)) count=$((0x49)) skip=$((0xadd8))
     sed -i "s/ :/:/" $TMP_GIT/fw_built.bin | echo "DDR-FIRMWARE: $(< "$TMP_GIT/fw_version.bin")" >> $TMP/info.txt
     echo "$(< "$TMP_GIT/fw_built.bin")" >> $TMP/info.txt
     SOCFAMILY="sm1"
+fi
+
+if [[ $# -eq 4 ]]
+then
+    echo "KEY-POWER: $4" >> $TMP/info.txt
 fi
 
 echo "SOC: $SOCFAMILY" >> $TMP/info.txt
