@@ -110,6 +110,7 @@ then
 fi
 
 sed -i "190d" $TMP_GIT/fip/lib.sh
+sed -i "s/ \x22bl40\x22//" $TMP_GIT/fip/$SOCFAMILY/variable_soc.sh
 sed -i "s/ \x24\x7BBL33_DEFCFG2\x7D\x2F\*//" $TMP_GIT/fip/build_bl33.sh
 (
     cd $TMP_GIT
