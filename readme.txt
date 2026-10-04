@@ -11,7 +11,7 @@ generate fip binary:
 # Bananapi M5
 collect FIP & build u-boot:
 
-./collect-m5_binaries-git-refboard.sh android-tv-13.0.0_r1 sm1 sm1_bananapim5_v1
+./collect-m5_binaries-git-refboard.sh devkits-port sm1 sm1_bananapi_m5
 
 
 scripts originally from https://android.googlesource.com/device/amlogic/yukawa/+/refs/heads/master/bootloader/scripts/
